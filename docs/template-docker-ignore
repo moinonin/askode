@@ -1,0 +1,107 @@
+# Template for <root-dir>/.dockerignore when building:
+#
+#   cd <root-dir>
+#   docker build -f docker/Dockerfile.test_0626 .
+#
+# Assumption:
+#   A full copy of this repo lives at:
+#     <root-dir>/rl-trade-trainer
+#
+# If the folder name differs, update Dockerfile ARG RL_TRADE_TRAINER_DIR and
+# mirror that folder name in the allowlist below.
+
+# Ignore everything by default. The image should not receive Freqtrade sqlite
+# files, live configs, exchange secrets, optimization outputs, reports, virtual
+# environments, git metadata, or research artifacts.
+*
+
+# Keep the Dockerfile directory available.
+!docker/
+!docker/Dockerfile.test_0626
+
+# Keep only the Karakana package needed for runtime installation. The
+# Dockerfile also copies only these paths explicitly; this allowlist keeps the
+# context small and prevents accidental transfer of large artifacts.
+!rl-trade-trainer/
+!rl-trade-trainer/karakana/
+!rl-trade-trainer/karakana/pyproject.toml
+!rl-trade-trainer/karakana/README.md
+!rl-trade-trainer/karakana/karakana/
+!rl-trade-trainer/karakana/karakana/**
+!rl-trade-trainer/karakana/config/
+!rl-trade-trainer/karakana/config/**
+
+# Explicitly keep generated/runtime state out, even if future allowlist rules
+# are broadened.
+**/.git/
+**/.venv/
+**/__pycache__/
+**/.pytest_cache/
+**/.ruff_cache/
+**/.mypy_cache/
+**/.DS_Store
+**/*.pyc
+**/*.pyo
+**/*.log
+**/*.sqlite
+**/*.sqlite-*
+**/*.db
+**/*.pt
+**/*.pkl
+**/*.csv
+**/*.jsonl
+
+# Exclude Freqtrade and repo runtime state.
+user_data/
+user_data/**
+**/user_data/
+**/user_data/**
+freqtrade/user_data/
+freqtrade/user_data/**
+rl-trade-trainer/user_data/
+rl-trade-trainer/user_data/**
+rl-trade-trainer/validation/
+rl-trade-trainer/validation/**
+rl-trade-trainer/best_models/
+rl-trade-trainer/best_models/**
+rl-trade-trainer/core/
+rl-trade-trainer/core/**
+rl-trade-trainer/scripts/
+rl-trade-trainer/scripts/**
+rl-trade-trainer/artifacts/
+rl-trade-trainer/artifacts/**
+rl-trade-trainer/defirl/
+rl-trade-trainer/defirl/**
+rl-trade-trainer/defirlpackages/
+rl-trade-trainer/defirlpackages/**
+rl-trade-trainer/docs/
+rl-trade-trainer/docs/**
+
+# Exclude non-runtime Karakana package subtrees. The Python package itself is
+# kept through rl-trade-trainer/karakana/karakana/** above.
+rl-trade-trainer/karakana/artifacts/
+rl-trade-trainer/karakana/artifacts/**
+rl-trade-trainer/karakana/build/
+rl-trade-trainer/karakana/build/**
+rl-trade-trainer/karakana/dist/
+rl-trade-trainer/karakana/dist/**
+rl-trade-trainer/karakana/*.egg-info/
+rl-trade-trainer/karakana/*.egg-info/**
+rl-trade-trainer/karakana/.venv/
+rl-trade-trainer/karakana/.venv/**
+rl-trade-trainer/karakana/docs/
+rl-trade-trainer/karakana/docs/**
+rl-trade-trainer/karakana/examples/
+rl-trade-trainer/karakana/examples/**
+rl-trade-trainer/karakana/research_results/
+rl-trade-trainer/karakana/research_results/**
+rl-trade-trainer/karakana/scratch/
+rl-trade-trainer/karakana/scratch/**
+rl-trade-trainer/karakana/tests/
+rl-trade-trainer/karakana/tests/**
+rl-trade-trainer/karakana/user_data/
+rl-trade-trainer/karakana/user_data/**
+rl-trade-trainer/karakana/karakana_dashboard/
+rl-trade-trainer/karakana/karakana_dashboard/**
+rl-trade-trainer/karakana/karakana_api/
+rl-trade-trainer/karakana/karakana_api/**

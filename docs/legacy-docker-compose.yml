@@ -1,0 +1,40 @@
+---
+services:
+  freqtrade:
+    #image: freqtradeorg/freqtrade:stable
+    image: moinonin/freqtrade-nr:1.3.6
+    #image: freqtrade-tradai:v2
+    # Use plotting image
+    # image: freqtradeorg/freqtrade:develop_plot
+    # # Enable GPU Image and GPU Resources (only relevant for freqAI)
+    # # Make sure to uncomment the whole deploy section
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]
+    # Build step - only needed when additional dependencies are needed
+    build:
+      context: .
+      dockerfile: "./docker/Dockerfile.test_0526"
+      platforms:
+        - linux/amd64
+        - linux/arm64
+    restart: unless-stopped
+    container_name: freqtrade
+    volumes:
+      - "./user_data:/freqtrade/user_data"
+    # Expose api on port 8080 (localhost only)
+    # Please read the https://www.freqtrade.io/en/stable/rest-api/ documentation
+    # for more information.
+    ports:
+      - "127.0.0.1:8000:8000"
+    # Default command used when running `docker compose up`
+    command: >
+      trade
+      --logfile /freqtrade/user_data/logs/freqtrade.log
+      --db-url sqlite:////freqtrade/user_data/tradesv3bybit.sqlite
+      --config /freqtrade/user_data/configbybit.json
+      --strategy Strategy298rl

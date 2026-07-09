@@ -1,0 +1,28 @@
+compose-file ?= custom-docker-compose.yml
+karakana-log-services ?= freqtrade karakana-shadow-trader karakana-shadow-health
+
+.PHONY: stop-cluster start-cluster restart-cluster logs-cluster start-cluster-logs status-cluster daily-check
+
+stop-cluster:
+	docker compose -f $(compose-file) down
+
+start-cluster:
+	docker compose -f $(compose-file) up -d
+
+restart-cluster:
+	docker compose -f $(compose-file) up -d --force-recreate
+
+logs-cluster:
+	docker compose -f $(compose-file) logs -f $(karakana-log-services)
+
+start-cluster-logs: start-cluster
+	docker compose -f $(compose-file) logs -f $(karakana-log-services)
+
+status-cluster:
+	docker compose -f $(compose-file) ps
+
+daily-check:
+	docker compose -f $(compose-file) ps
+	wc -l user_data/freqtrade_signals_karakana.csv user_data/reports/karakana_shadow_trade_history.csv user_data/reports/directional_strategy_health.csv
+	tail -n 3 user_data/reports/directional_strategy_health.csv
+	python3 -m json.tool user_data/reports/karakana_runtime_status.json | tail -n 80

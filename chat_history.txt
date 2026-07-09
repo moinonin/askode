@@ -1,0 +1,48 @@
+--- Chat Turn ---
+User: is freqtrade-karakana pipeline robust?
+Bot: I cannot find information about the robustness of the `freqtrade-karakana` pipeline in my project files. Please provide more context or check if there are related documents available.
+
+--- Chat Turn ---
+User: What are the quickstart instruction to setup karakana-freqtrade pipeline?
+Bot: I cannot find that in my project files.
+
+--- Chat Turn ---
+User: how to start using freqtrade and karakana
+Bot: To start using Freqtrade with Karakana, follow these steps:
+
+1. **Installation**:
+   - First, ensure you have Python 3.6+ installed on your system.
+   - Install Freqtrade and its dependencies:
+     ```
+     pip install freqtrade
+     ```
+   - Clone the Karakana repository:
+     ```
+     git clone https://github.com/freqtrade/karakana.git
+     cd karakana
+     ```
+
+2. **Configuration**:
+   - Copy the example configuration file to your Freqtrade config directory:
+     ```
+     cp karakana/config/karakana.json ~/.freqtrade/user_data/config/
+     ```
+   - Edit the copied `karakana.json` file to configure Karakana according to your needs.
+
+3. **Data Feed**:
+   - Ensure you have historical data for backtesting or live trading. You can use Freqtrade's data feed feature to fetch data from exchanges like Binance, Kraken, etc.
+   - For Karakana, you'll need OHLCV (Open-High-Low-Close-Volume) data.
+
+4. **Running Backtest**:
+   - To run a backtest using Freqtrade and Karakana, use the following command:
+     ```
+     freqtrade backtesting --config karakana.json
+     ```
+
+5. **Live Trading**:
+   - Before live trading, make sure to test your strategy thoroughly with backtests.
+   - To start live trading with Freqtrade and Karakana, use the following command:
+     ```
+     freqtrade trade --config karakana.json
+     ```
+
