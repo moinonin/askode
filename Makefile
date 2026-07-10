@@ -15,7 +15,7 @@ help:
 setup:
 	@echo "Installing pipeline dependencies..."
 	pip install --upgrade pip
-	pip install -r requirements.txt
+	pip install --ignore-installed -r requirements.txt
 
 # Step 2: One-off knowledge compiler sequence 
 generate:
@@ -30,7 +30,7 @@ run:
 		echo "ERROR: qa_pairs.jsonl missing! Automatically executing 'make generate' first..."; \
 		make generate; \
 	fi
-	chainlit run src/bot.py -w
+	chainlit run src/bot.py -w --port 3000
 
 # Cleanup temporary compilation folders and data maps
 clean:
@@ -39,3 +39,6 @@ clean:
 	rm -rf .chroma
 	find . -type d -name "__pycache__" -exec rm -rf {} +
 
+# cleanup , setup, generate and run
+all:
+	@$(MAKE) clean && $(MAKE) setup && $(MAKE) generate && $(MAKE) run

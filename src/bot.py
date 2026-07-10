@@ -45,7 +45,12 @@ try:
 except FileNotFoundError:
     print("Reference database index missing. Generate qa_pairs.jsonl first.")
 
-documents = [Document(page_content=f"Question: {qa['question']}\nAnswer: {qa['answer']}") for qa in qa_list]
+documents = [
+    Document(
+        page_content=f"Question: {qa['question']}\nAnswer: {qa['answer']}\nSource: {qa['source']}",
+        metadata={"source": qa['source']}
+    ) for qa in qa_list
+]
 
 if documents:
     print(f"Assembling search context spaces using Top-K limit: {RETRIEVER_TOP_K}...")
@@ -56,13 +61,17 @@ else:
 
 prompt_template = ChatPromptTemplate.from_messages([
     ("system", (
-        "You are an AI assistant answering technical architecture questions about a software project.\n"
-        "Analyze the context references provided below to extract clean factual explanations for the user.\n"
-        "If the context matches are completely missing or irrelevant to the query, respond with: "
-        "'I cannot find that in my project files.'\n\n"
-        "--- RETRIEVED PROJECT DATA REFERENCE CONTEXT ---\n"
+        "You are a technical expert answering questions about a software project using a curated Q&A knowledge base.\n"
+        "Each context entry has a source file (shown as 'Source: filename'). Use this to ground your answer.\n\n"
+        "Rules:\n"
+        "1. Answer ONLY from the provided context. Do not use external knowledge.\n"
+        "2. Cite sources inline like [Source: filename] after each claim.\n"
+        "3. If context is irrelevant or missing, say: 'I cannot find that in my project files.'\n"
+        "4. If context partially answers, give what you have and note gaps.\n"
+        "5. Be concise. Prefer code-level specifics over generalities.\n\n"
+        "--- CONTEXT ---\n"
         "{context}\n"
-        "--------------------------------------------------"
+        "----------------"
     )),
     ("human", "{question}")
 ])

@@ -67,19 +67,36 @@ llm = ChatOpenAI(
 parser = JsonOutputParser()
 
 global_prompt = ChatPromptTemplate.from_template(
-    "You are an expert Technical Architect analyzing this comprehensive system documentation file.\n"
-    "Generate {num_questions} conceptual, high-level overview question‑answer pairs explaining how this document works as a whole.\n\n"
-    "Document Content:\n{text}\n\n"
+    "You are an expert Technical Architect documenting a software system.\n"
+    "Generate {num_questions} high-level conceptual question-answer pairs that explain:\n"
+    "- The document's purpose and role in the system\n"
+    "- Key architectural decisions and trade-offs\n"
+    "- Important configurations, interfaces, or data flows\n"
+    "- Non-obvious assumptions or invariants\n\n"
+    "Each question must be answerable from the document alone. "
+    "Avoid generic questions (e.g., 'What is this file?'). "
+    "Prefer specific, referenceable insights.\n\n"
+    "Document: {source}\n"
+    "Content:\n{text}\n\n"
     "{format_instructions}\n"
-    "Return ONLY raw structural JSON. Remove backticks."
+    "Return ONLY raw JSON array. No backticks, no markdown."
 ).partial(format_instructions=parser.get_format_instructions())
 
 code_prompt = ChatPromptTemplate.from_template(
-    "You are a senior Software Engineer reading this code snippet text block.\n"
-    "Generate {num_questions} detailed question‑answer pairs focusing specifically on code logic, specific parameters, syntax, or potential pitfalls.\n\n"
+    "You are a Senior Software Engineer creating a technical Q&A reference for this codebase.\n"
+    "Generate {num_questions} precise question-answer pairs covering:\n"
+    "- Specific function/class behavior, parameters, return values\n"
+    "- Edge cases, error handling, invariants\n"
+    "- Configuration keys, environment variables, constants\n"
+    "- Non-obvious logic, algorithms, or side effects\n"
+    "- Dependencies and coupling\n\n"
+    "Each Q&A must be grounded in the snippet. "
+    "If the snippet is too generic (boilerplate, imports only), return empty array []."
+    "Do not hallucinate beyond the provided text.\n\n"
+    "Source file: {source}\n"
     "Snippet:\n{text}\n\n"
     "{format_instructions}\n"
-    "Return ONLY raw structural JSON. Remove backticks."
+    "Return ONLY raw JSON array. No backticks, no markdown."
 ).partial(format_instructions=parser.get_format_instructions())
 
 global_chain = global_prompt | llm | parser
@@ -104,11 +121,12 @@ def process_generated_pairs(pairs, source_metadata):
 print(f"Pass 1: Profiling macro contexts ({GLOBAL_QUESTIONS} Qs/file) for {len(docs)} files...")
 for doc in docs:
     text_to_process = doc.page_content[:12000] if len(doc.page_content) > 12000 else doc.page_content
+    source = doc.metadata["source"]
     try:
-        pairs = global_chain.invoke({"text": text_to_process, "num_questions": GLOBAL_QUESTIONS})
-        process_generated_pairs(pairs, doc.metadata["source"])
+        pairs = global_chain.invoke({"text": text_to_process, "num_questions": GLOBAL_QUESTIONS, "source": source})
+        process_generated_pairs(pairs, source)
     except Exception as e:
-        print(f"Error compiling global mappings for {doc.metadata['source']}: {e}")
+        print(f"Error compiling global mappings for {source}: {e}")
     time.sleep(0.2)
 
 # PASS 2: Detailed Fragment Splitting Pass
@@ -117,9 +135,10 @@ chunks = splitter.split_documents(docs)
 
 print(f"Pass 2: Processing code items ({CODE_QUESTIONS} Qs/chunk) across {len(chunks)} fragments...")
 for i, chunk in enumerate(chunks):
+    source = chunk.metadata["source"]
     try:
-        pairs = code_chain.invoke({"text": chunk.page_content, "num_questions": CODE_QUESTIONS})
-        process_generated_pairs(pairs, chunk.metadata["source"])
+        pairs = code_chain.invoke({"text": chunk.page_content, "num_questions": CODE_QUESTIONS, "source": source})
+        process_generated_pairs(pairs, source)
     except Exception as e:
         print(f"Error reading logic array at position {i}: {e}")
     time.sleep(0.2)

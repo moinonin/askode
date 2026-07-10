@@ -105,3 +105,31 @@ def my_function(candidate_is_short):
 
 These snippets illustrate how the methods and parameters mentioned in the context references are implemented in the project's codebase.
 
+--- Chat Turn ---
+User: hello
+Bot: Hello! How can I assist you with your questions about the software project using our curated Q&A knowledge base?
+
+--- Chat Turn ---
+User: what is the general architecture of this repo?
+Bot: I cannot find information about the general architecture of the repo in my project files.
+
+--- Chat Turn ---
+User: what can you say about the repo?
+Bot: The `--build-arg RL_TRADE_TRAINER_DIR=<your-repo-folder>` argument in the Docker build command allows you to specify the folder name containing your Karakana repository if it's different from the default 'rl-trade-trainer/karakana' [Source: freqtrade-karakana-deployment.md].
+
+--- Chat Turn ---
+User: give a a quick start to running the cluster
+Bot: To quickly start the cluster, you can use the following command:
+
+```bash
+make start-cluster
+```
+
+This command will initiate the Freqtrade Karakana cluster. After starting the cluster, you can manually run the runtime monitor using:
+
+```bash
+make -f freqtrade-karakana-thresholds.mk karakana-runtime-monitor
+```
+
+[Source: freqtrade-karakana-quickstart.md]
+
