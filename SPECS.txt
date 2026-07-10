@@ -1,0 +1,296 @@
+The problem
+
+Today's repositories are optimized for humans writing code.
+
+Repository
+├── Source code
+├── README.md
+├── Tests
+└── CI/CD
+
+An AI assistant has to infer:
+
+why modules exist
+architectural decisions
+intended usage
+invariants
+assumptions
+dependencies
+tradeoffs
+examples
+
+Much of this knowledge only exists in developers' heads or old chat logs.
+
+A future AI-native repository
+
+Instead of treating code as the primary artifact, treat knowledge as primary.
+
+Repository
+├── code/
+├── architecture/
+├── concepts/
+├── api/
+├── tutorials/
+├── design_decisions/
+├── examples/
+├── benchmarks/
+├── changelog/
+├── ontology/
+└── ai_index/
+
+The source code becomes just one document among many.
+
+Every function, module and class would have semantic relationships.
+
+Authentication
+    │
+    ├── OAuth
+    ├── JWT
+    ├── Session Manager
+    └── Permission Engine
+
+Permission Engine
+    │
+    ├── depends on User Model
+    ├── called by API Gateway
+    ├── tested by ...
+    └── examples ...
+
+This is much richer than documentation.
+
+Think of it as a real library
+
+Libraries aren't organized alphabetically.
+
+They have
+
+categories
+subjects
+references
+indexes
+cross references
+citations
+editions
+
+Software could be identical.
+
+Machine Learning
+
+    Reinforcement Learning
+        Trading
+            State Representation
+            Reward Functions
+            Policy Models
+
+Infrastructure
+
+    Docker
+    Kubernetes
+    AWS
+
+Mathematics
+
+    Markov Models
+    Optimization
+    Statistics
+
+Every code object belongs to multiple subjects.
+
+Documentation becomes structured
+
+Instead of README.md only,
+
+each module could expose metadata.
+
+Purpose
+
+Dependencies
+
+Design rationale
+
+Public API
+
+Examples
+
+Failure modes
+
+Performance
+
+Security
+
+Related modules
+
+Frequently asked questions
+
+History
+
+Future improvements
+
+Almost like a scientific paper.
+
+AI-generated knowledge graph
+
+The AI continuously constructs a graph.
+
+Function A
+    ↓ calls
+
+Function B
+    ↓ implements
+
+Interface C
+    ↓ documented in
+
+Tutorial D
+    ↓ benchmarked by
+
+Experiment E
+
+Now users ask
+
+Why was this algorithm chosen?
+
+or
+
+Which modules would break if I remove this?
+
+without manually searching.
+
+Multiple retrieval layers
+
+Instead of one vector database:
+
+Layer 1
+
+lexical search
+
+Layer 2
+
+semantic embeddings
+
+Layer 3
+
+dependency graph
+
+Layer 4
+
+execution traces
+
+Layer 5
+
+design rationale
+
+Layer 6
+
+historical evolution
+
+The AI decides which combination to use.
+
+The library analogy can go further
+
+Traditional libraries have
+
+librarian
+catalogue
+shelves
+references
+editions
+borrowing history
+
+Your AI library could have equivalents.
+
+Catalogue
+
+indexes every concept
+
+Shelves
+
+group projects by domain
+
+Reference section
+
+architecture documents
+
+Librarian (LLM)
+
+answers questions
+
+Citation network
+
+which repositories inspired others
+
+Reading history
+
+what developers typically study together
+Beyond Git
+
+Git answers
+
+What changed?
+
+Your system answers
+
+Why did it change?
+What does it do?
+How is it used?
+What are the alternatives?
+What assumptions exist?
+Which tutorials explain it?
+Which examples exercise it?
+Which papers inspired it?
+Which projects reuse it?
+Which APIs depend on it?
+
+That is a fundamentally different problem.
+
+Standardizing AI-native documentation
+
+I think this is the most important part of your proposal.
+
+Today we standardize
+
+Markdown
+OpenAPI
+Javadoc
+docstrings
+
+Tomorrow we may need an AI Documentation Specification (AIDSpec) or similar standard that every repository includes.
+
+For example:
+
+ai.yaml
+
+project:
+    domain:
+    concepts:
+    prerequisites:
+
+modules:
+
+functions:
+
+examples:
+
+architecture:
+
+glossary:
+
+faq:
+
+tutorials:
+
+benchmarks:
+
+security:
+
+dependencies:
+
+decision_log:
+
+This would allow any AI system to ingest repositories consistently rather than reverse-engineering project structure.
+
+What makes this novel
+
+Many existing tools (e.g. source graph search, code search, repository RAG, AI coding assistants) focus on helping developers navigate code. Your idea shifts the primary abstraction from files to knowledge. The repository becomes a curated, queryable knowledge base where code, architecture, rationale, examples, and history are all first-class, interconnected objects.
+
+If implemented well, such a system could become for software engineering what a library catalogue is for books: not merely a place to store artifacts, but a structured system for organizing, discovering, understanding, and preserving knowledge at a scale that human memory—and increasingly AI-generated code—can no longer manage effectively.
