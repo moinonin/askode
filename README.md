@@ -1,80 +1,158 @@
 # Karakana Local Context Engine 🤖📚
 
-An adaptive, configurable Retrieval-Augmented Generation (RAG) codebase designed to ingest localized engineering documentation (`.md`) and code layers (`.py`), synthesize them into robust Question-Answer maps, and serve them via a local Semantic Vector Knowledge Base.
-
-Built using **LangChain Expression Language (LCEL)**, **ChromaDB**, and **Chainlit**, it is fully parameterized to toggle seamlessly between high-performance local inference instances (such as a native `mistral-nemo:12b` node) or cloud infrastructure fabrics.
+**Multi-Provider RAG System** — Ingest engineering docs and code into a queryable knowledge base served via Chainlit chat UI. Supports three inference backends: Local (Ollama), NVIDIA API, and OpenAI Cloud.
 
 ---
 
-## 🏗️ Architecture Blueprint
+## 🎯 What This Does
 
-1. **Pass 1 - Macro Ingestion**: `scripts/quizgen.py` reads entire documents from the target file system and instructs a Language Model to compile comprehensive, high-level summary arrays outlining general workflows and systems layouts.
-2. **Pass 2 - Granular Logic Split**: Documents are broken down via structural, overlapping text splitters to derive targeted questions detailing syntax edge-cases, specific configuration keys, and functional variables.
-3. **Serving Layer - Semantic Vector Search**: `src/bot.py` indexes the generated dataset into an in-memory Chroma Vector Database using context embedding logic. When a human questions the layout, nearest-neighbor matching finds the exact conceptual fragments and structures a safe response through the LLM.
+1. **Ingest**: Scans `./docs` for `.md` and `.py` files
+2. **Generate Q&A**: Two-pass LLM pipeline creates question-answer pairs:
+   - Pass 1 (Macro): 3 high-level architectural Q&A per file
+   - Pass 2 (Micro): 2 detailed code-level Q&A per 1500-char chunk
+3. **Index**: Embeds Q&A pairs into ChromaDB vector store
+4. **Serve**: Chainlit chat UI at `http://localhost:3000` with streaming responses and source citations
 
 ---
 
-## 🛠️ Quickstart Runbook (On Clean Git Clone)
+## 🏗️ Architecture
 
-Follow this execution loop immediately after cloning the repository workspace to initialize your system.
-
-### 1. Prepare Your Environment
-Create an `.env` file in the root of the project to customize the engine limits. If your environment already exports these variables, these configurations will serve as an automatic fallback:
-
-```ini
-# --- TARGET CONFIGURATION ---
-DOCS_DIR=./docs
-
-# --- RUNTIME CORE CONFIGURATION ---
-LLM_PROVIDER=local
-LLM_MODEL=mistral-nemo:12b
-EMBEDDING_MODEL=mistral-nemo:12b
-LLM_BASE_URL=http://localhost:11434/v1
-LLM_API_KEY=local-no-key-needed
-
-# --- PERFORMANCE TUNING SEEDS ---
-LLM_TEMPERATURE=0.2
-GLOBAL_QUESTIONS_PER_FILE=3
-CODE_QUESTIONS_PER_CHUNK=2
-CHUNKING_SIZE=1500
-CHUNKING_OVERLAP=150
-RETRIEVER_TOP_K=4
+```
+docs/*.md, *.py
+       │
+       ▼
+┌─────────────────────────────────────┐
+│  Dual-Pass Q&A Generation           │
+│  (configurable model provider)      │
+└─────────────────────────────────────┘
+       │
+       ▼
+┌─────────────────────────────────────┐
+│  ChromaDB Vector Store              │
+│  (persistent .chroma/)              │
+└─────────────────────────────────────┘
+       │
+       ▼
+┌─────────────────────────────────────┐
+│  Chainlit Chat UI (port 3000)       │
+│  RAG: Retriever → Prompt → LLM      │
+│  Streaming + Source Citations       │
+└─────────────────────────────────────┘
 ```
 
-### 2. Execute the Automated Pipeline
+---
 
+## 🚀 Quick Start
+
+### 1. Install Dependencies
 ```bash
-# Step A: Install the package landscape
 make setup
-
-# Step B: Compile your code mappings (One-off generation task)
-make generate
-
-# Step C: Boot the interactive interface agent
-make run
 ```
 
+### 2. Choose Your Provider
+
+| Provider | Command | Requirements |
+|----------|---------|--------------|
+| **Local (Ollama)** | `make run-local` | `ollama serve` + `ollama pull mistral-nemo:12b nomic-embed-text` |
+| **NVIDIA API** | `make run-nvidia` | `export NVIDIA_API_KEY=...` |
+| **OpenAI Cloud** | `make run-cloud` | `export OPENAI_API_KEY=...` |
+
+### 3. Generate Knowledge Base
+```bash
+# First run auto-generates, or run explicitly:
+make generate
+```
+
+### 4. Chat
+Open `http://localhost:3000` and ask questions about your codebase.
+
 ---
 
-## ⚙️ Makefile Control Center Reference
+## ⚙️ Configuration
 
-| Command | Action |
-| :--- | :--- |
-| `make setup` | Upgrades core Python package wrappers and pulls dependencies mapped via `requirements.txt`. |
-| `make generate` | Runs the dual-pass system mapping parser loop. Overwrites `qa_pairs.jsonl`. |
-| `make run` | Instantiates a stateful context router and boots the UI dashboard room via port `8000`. |
-| `make clean` | Flushes structural database footprints, dynamic file arrays, and compiler artifacts. |
-
----
-
-## 🔄 Transitioning to Cloud Infrastructures
-
-To scale your deployment model directly into production using remote server nodes (like OpenAI's cluster models) rather than your running machine assets, update your environment properties inside `.env`:
+All settings via `.env` (or Makefile overrides):
 
 ```ini
-LLM_PROVIDER=cloud
-LLM_MODEL=gpt-4o-mini
-LLM_BASE_URL=https://openai.com
-LLM_API_KEY=sk-proj-YOUR_SECRET_CLOUD_TOKEN_HERE
+# Provider: local | nvidia | cloud
+LLM_PROVIDER=nvidia
+
+# Model selection (auto-defaults per provider)
+LLM_MODEL=nvidia/nemotron-3-ultra-550b-a55b
+EMBEDDING_MODEL=nvidia/nv-embed-v1
+
+# Base URLs (auto-defaults)
+LLM_BASE_URL=https://integrate.api.nvidia.com/v1
+
+# API Keys
+NVIDIA_API_KEY=your-key
+# OPENAI_API_KEY=your-key  (for cloud)
 ```
-No manual script manipulations, adjustments, or framework rewrites are required.
+
+**Makefile Overrides:**
+```bash
+make run PROVIDER=nvidia MODEL=nvidia/llama-3.1-nemotron-70b-instruct
+make generate PROVIDER=local MODEL=llama3.1:8b
+```
+
+---
+
+## 📁 Project Structure
+
+```
+askode/
+├── Makefile              # Provider-aware orchestration
+├── .env                  # Runtime config (not in git)
+├── src/
+│   └── bot.py           # Chainlit RAG server
+├── scripts/
+│   └── quizgen.py       # Dual-pass Q&A generator
+├── docs/                # Your engineering docs go here
+├── qa_pairs.jsonl       # Generated Q&A (gitignored)
+├── .chroma/             # ChromaDB vector store (gitignored)
+└── chat_history.txt     # Chat logs (gitignored)
+```
+
+---
+
+## 🔧 Make Targets
+
+| Target | Description |
+|--------|-------------|
+| `make setup` | Install Python deps |
+| `make generate` | Run dual-pass Q&A generation |
+| `make run-local` | Run with Ollama (local) |
+| `make run-nvidia` | Run with NVIDIA API |
+| `make run-cloud` | Run with OpenAI |
+| `make clean` | Remove generated artifacts |
+
+---
+
+## 📋 Requirements
+
+- Python 3.11+
+- For local: Ollama 0.31+ with `mistral-nemo:12b` and `nomic-embed-text`
+- For NVIDIA: API key from [build.nvidia.com](https://build.nvidia.com)
+- For OpenAI: API key from [platform.openai.com](https://platform.openai.com)
+
+---
+
+## 📝 Generated Q&A Format
+
+Each entry in `qa_pairs.jsonl`:
+```json
+{
+  "id": "qa_42",
+  "source": "architecture.md",
+  "question": "How does the deployment architecture enforce separation between the Freqtrade engine and user-specific strategy artifacts?",
+  "answer": "The deployment keeps all user-specific artifacts (strategies, SQLite DBs, configs, policies, logs, reports) outside the container under a host `user_data/` directory..."
+}
+```
+
+---
+
+## 🎯 Use Cases
+
+- **Onboarding**: New engineers query the codebase via natural language
+- **Architecture Reviews**: Quick lookup of design decisions and data flows
+- **Debugging**: Trace config keys, error handling, and invariants
+- **Knowledge Retention**: Preserve tribal knowledge in queryable form

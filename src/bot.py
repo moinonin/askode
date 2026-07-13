@@ -8,6 +8,10 @@ from langchain_openai import OpenAIEmbeddings, ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.documents import Document
+from langchain_core.embeddings import Embeddings
+from pydantic import SecretStr
+import openai
+import ollama
 
 # Parse application landscape parameters
 load_dotenv()
@@ -17,25 +21,79 @@ LLM_MODEL = os.getenv("LLM_MODEL", "mistral-nemo:12b")
 EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "nomic-embed-text")
 LLM_BASE_URL = os.getenv("LLM_BASE_URL", "http://localhost:11434/v1")
 LLM_API_KEY = os.getenv("LLM_API_KEY", "local-no-key-needed")
+NVIDIA_API_KEY = os.getenv("NVIDIA_API_KEY", LLM_API_KEY)
 
 # Advanced RAG Custom Param Hooks
 LLM_TEMPERATURE = float(os.getenv("LLM_TEMPERATURE", 0.3))
 RETRIEVER_TOP_K = int(os.getenv("RETRIEVER_TOP_K", 4))
 
+
+class OllamaEmbeddingsFixed(Embeddings):
+    """Custom Ollama embeddings that works without /tokenize endpoint."""
+    
+    def __init__(self, model: str, base_url: str = "http://localhost:11434"):
+        self.model = model
+        self.base_url = base_url.rstrip('/')
+        self.client = ollama.Client(host=base_url)
+    
+    def embed_documents(self, texts: list[str]) -> list[list[float]]:
+        result = self.client.embed(model=self.model, input=texts)
+        return result['embeddings']
+    
+    def embed_query(self, text: str) -> list[float]:
+        return self.embed_documents([text])[0]
+
+
+class NVIDIAEmbeddings(Embeddings):
+    """Custom NVIDIA embeddings that bypasses tiktoken tokenization."""
+    
+    def __init__(self, model: str, base_url: str, api_key: str):
+        self.model = model
+        self.base_url = base_url
+        self.api_key = api_key
+        self.client = openai.OpenAI(base_url=base_url, api_key=api_key)
+    
+    def embed_documents(self, texts: list[str]) -> list[list[float]]:
+        result = self.client.embeddings.create(
+            model=self.model,
+            input=texts
+        )
+        return [d.embedding for d in result.data]
+    
+    def embed_query(self, text: str) -> list[float]:
+        return self.embed_documents([text])[0]
+
+
 # 1. Routing runtime vector maps
 if LLM_PROVIDER == "cloud":
-    embeddings = OpenAIEmbeddings(model="text-embedding-3-small", api_key=LLM_API_KEY)
+    embeddings = OpenAIEmbeddings(model="text-embedding-3-small", api_key=SecretStr(LLM_API_KEY))
+elif LLM_PROVIDER == "nvidia":
+    # NVIDIA uses custom embeddings to bypass tiktoken
+    embeddings = NVIDIAEmbeddings(
+        model=EMBEDDING_MODEL,
+        base_url=LLM_BASE_URL,
+        api_key=NVIDIA_API_KEY
+    )
 else:
     ollama_root = LLM_BASE_URL.replace("/v1", "").strip()
-    embeddings = OllamaEmbeddings(model=EMBEDDING_MODEL, base_url=ollama_root)
+    embeddings = OllamaEmbeddingsFixed(model=EMBEDDING_MODEL, base_url=ollama_root)
 
 # 2. Main Generation Engine setup
-local_llm = ChatOpenAI(
-    model=LLM_MODEL,
-    base_url=LLM_BASE_URL,
-    api_key=LLM_API_KEY,
-    temperature=LLM_TEMPERATURE
-)
+if LLM_PROVIDER == "nvidia":
+    # NVIDIA uses OpenAI-compatible API format
+    local_llm = ChatOpenAI(
+        model=LLM_MODEL,
+        base_url=LLM_BASE_URL,
+        api_key=SecretStr(NVIDIA_API_KEY),
+        temperature=LLM_TEMPERATURE
+    )
+else:
+    local_llm = ChatOpenAI(
+        model=LLM_MODEL,
+        base_url=LLM_BASE_URL,
+        api_key=SecretStr(LLM_API_KEY),
+        temperature=LLM_TEMPERATURE
+    )
 
 # 3. Dynamic Memory Store Creation
 qa_list = []
@@ -106,4 +164,3 @@ async def main(message: cl.Message):
         f.write(f"--- Chat Turn ---\n")
         f.write(f"User: {user_query}\n")
         f.write(f"Bot: {full_response}\n\n")
-
