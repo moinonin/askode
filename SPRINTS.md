@@ -200,6 +200,50 @@ docs/okfs/
 
 ---
 
+## Sprint 7 — Remote Repository Knowledge Ingestion (Week 6)
+
+**Goal**: Ingest knowledge directly from remote Git repositories without local checkout
+
+### Stories
+
+| ID | Story | Acceptance Criteria | Effort |
+|----|-------|---------------------|--------|
+| **OKF-28** | GitHub/GitLab remote fetcher | `okf generate --remote https://github.com/owner/repo --ref main`<br>Fetches tree via GitHub/GitLab API (no local clone)<br>Supports `--path docs/src` for subdirectory<br>Supports `--ref main|develop|v1.0.0|abc123` | 5 pts |
+| **OKF-29** | Private repo authentication | `GITHUB_TOKEN` / `GITLAB_TOKEN` env vars<br>`okf generate --remote git@github.com:org/private-repo --ref main`<br>Rate limit handling with exponential backoff | 3 pts |
+| **OKF-30** | Selective path inclusion | `--include "src/**/*.py" --exclude "tests/**"`<br>Glob patterns for file filtering<br>Default: `**/*.py`, `**/*.md`, `**/*.yaml`, `**/*.yml` | 2 pts |
+| **OKF-31** | Incremental remote sync | `okf update --remote https://github.com/owner/repo --ref main`<br>Uses GitHub API `since` parameter for changed files only<br>Detects force-push / rebase (commit SHA mismatch) | 3 pts |
+| **OKF-32** | Remote bundle as dependency | `okf bundle add https://github.com/owner/lib --ref v1.0.0 --as external_lib`<br>Links external bundle concepts in current bundle<br>`okf lookup --bundle ./docs/okfs/external_lib SomeClass` | 3 pts |
+
+### Definition of Done
+- [ ] Generate OKF bundle from any public GitHub/GitLab repo
+- [ ] Authenticated access to private repos
+- [ ] Selective path inclusion with glob patterns
+- [ ] Incremental sync detects changes via API
+- [ ] External bundles linked as cross-bundle dependencies
+
+---
+
+## Sprint 8 — Multi-Repo Knowledge Graph & Federation (Week 7-8)
+
+**Goal**: Build unified knowledge graph across remote + local bundles
+
+### Stories
+
+| ID | Story | Acceptance Criteria | Effort |
+|----|-------|---------------------|--------|
+| **OKF-33** | Cross-repo dependency resolution | `okf generate --federate ./local_repo https://github.com/owner/lib`<br>Resolves imports: `from external_lib.module import Class`<br>Creates cross-bundle links: `local_module.function → external_lib.Class` | 5 pts |
+| **OKF-34** | Federated knowledge graph | `okf graph --federate ./docs/okfs/code_bundle https://github.com/owner/lib`<br>Unified D3 visualization with cross-repo edges<br>Edge types: imports, implements, extends, calls | 4 pts |
+| **OKF-35** | Remote bundle caching | Local cache at `~/.okf/cache/remote/`<br>TTL-based expiry (configurable: `--cache-ttl 24h`)<br>Hash-based invalidation on remote change | 3 pts |
+| **OKF-36** | Team knowledge sharing | `okf bundle publish --to https://okf-registry.company.com`<br>Private registry for team bundles<br>`okf bundle pull org/repo@v1.2.0` | 4 pts |
+
+### Definition of Done
+- [ ] Cross-repo imports resolved to external bundle concepts
+- [ ] Unified graph visualizes local + remote concepts
+- [ ] Remote bundles cached locally with TTL
+- [ ] Team registry for bundle sharing
+
+---
+
 ## Quality Metrics Dashboard (Updated with OKF Baselines)
 
 | Metric | Sprint 0 Baseline | Sprint 1 Target | Sprint 2 Target | Sprint 3 Target | Sprint 4 Target |
