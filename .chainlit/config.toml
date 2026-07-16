@@ -22,6 +22,28 @@ mask_user_env = false
 # Authorized origins
 allow_origins = ["*"]
 
+# Engine.IO / Socket.IO settings to prevent "Too many packets in payload" errors
+# https://github.com/socketio/engine.io-client/blob/master/docs/API.md
+[project.engineio]
+# Maximum size of a single message payload in bytes (default: 1e6 = 1MB)
+# Increase for large responses
+max_payload = 10485760  # 10MB
+
+# Ping interval in milliseconds (default: 25000)
+ping_interval = 25000
+
+# Ping timeout in milliseconds (default: 20000)
+ping_timeout = 20000
+
+# Maximum number of packets in a single payload (default: 100)
+max_packets = 500
+
+[project.socketio]
+# Socket.IO specific settings
+# https://socket.io/docs/v4/server-options/
+# Max message size
+max_message_size = 10485760  # 10MB
+
 [features]
 # Process and display HTML in messages. This can be a security risk (see https://stackoverflow.com/questions/19603097/why-is-it-dangerous-to-render-user-generated-html-or-javascript)
 unsafe_allow_html = false

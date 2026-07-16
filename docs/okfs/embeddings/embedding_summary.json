@@ -1,0 +1,36 @@
+{
+  "total_chunks": 445,
+  "chunks_with_embeddings": 445,
+  "chunks_with_errors": 0,
+  "embedding_model": "nomic-embed-text",
+  "embedding_dim": 768,
+  "by_type": {
+    "Config": 12,
+    "DeploymentGuide": 45,
+    "Spec": 33,
+    "Workflow": 150,
+    "Quickstart": 15,
+    "Function": 108,
+    "Class": 15,
+    "Document": 52,
+    "Strategy": 8,
+    "Module": 4,
+    "Index": 3
+  },
+  "by_bundle": {
+    "Dockerfile": 2,
+    "freqtrade-karakana-deployment": 45,
+    "freqtrade-karakana-thresholds": 5,
+    "FREQTRADE_STRATEGY_SPEC": 33,
+    "rdql-karakana-freqtrade-workflow": 150,
+    "freqtrade-karakana-quickstart": 15,
+    "docker-compose": 5,
+    "strategies": 49,
+    "okfs": 60,
+    "Strategy322sgo": 50,
+    "SUMMARY": 3,
+    "bot": 10,
+    "quizgen": 8,
+    "convert_docs_to_okf": 10
+  }
+}

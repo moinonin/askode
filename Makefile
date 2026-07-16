@@ -168,4 +168,156 @@ clean:
 	rm -rf .chroma
 	find . -type d -name "__pycache__" -exec rm -rf {} +
 
+# ============================================================================
+# OKF Knowledge Bundle Targets
+# ============================================================================
+
+# Bundle generation
+okf-generate-code:
+	okf generate ./src ./docs/okfs/code_bundle
+
+okf-generate-scripts:
+	okf generate ./scripts ./docs/okfs/scripts_bundle
+
+okf-generate-strategies:
+	okf generate ./docs/strategies ./docs/okfs/strategies_bundle
+
+okf-generate-docs:
+	python scripts/convert_docs_to_okf.py --source docs --output docs/okfs/docs_bundle
+
+okf-generate-all: okf-generate-code okf-generate-scripts okf-generate-strategies okf-generate-docs
+
+# Incremental updates (fast - only changed files)
+okf-update-code:
+	okf update ./src ./docs/okfs/code_bundle
+
+okf-update-scripts:
+	okf update ./scripts ./docs/okfs/scripts_bundle
+
+okf-update-strategies:
+	okf update ./docs/strategies ./docs/okfs/strategies_bundle
+
+okf-update-docs:
+	python scripts/convert_docs_to_okf.py --source docs --output docs/okfs/docs_bundle
+
+okf-update-all: okf-update-code okf-update-scripts okf-update-strategies okf-update-docs
+
+# Watch mode (continuous updates during development)
+okf-watch-code:
+	okf update ./src ./docs/okfs/code_bundle --watch
+
+okf-watch-scripts:
+	okf update ./scripts ./docs/okfs/scripts_bundle --watch
+
+okf-watch-strategies:
+	okf update ./docs/strategies ./docs/okfs/strategies_bundle --watch
+
+okf-watch-docs:
+	okf update ./docs ./docs/okfs/docs_bundle --watch
+
+# Chunking + Embedding + Indexing
+okf-chunk:
+	python scripts/chunk_okf_bundles.py --bundle docs/okfs/code_bundle --bundle docs/okfs/docs_bundle --bundle docs/okfs/scripts_bundle --bundle docs/okfs/strategies_bundle --output docs/okfs/chunks
+
+okf-embed:
+	python scripts/generate_embeddings.py
+
+okf-index:
+	python scripts/index_to_chromadb.py
+
+okf-pipeline: okf-chunk okf-embed okf-index
+
+# Cross-bundle links
+okf-link:
+	python scripts/add_cross_bundle_links.py
+
+# Visualization
+okf-viz-code:
+	mkdir -p docs/okfs/viz && okf visualize ./docs/okfs/code_bundle docs/okfs/viz/code_viz.html
+
+okf-viz-scripts:
+	mkdir -p docs/okfs/viz && okf visualize ./docs/okfs/scripts_bundle docs/okfs/viz/scripts_viz.html
+
+okf-viz-strategies:
+	mkdir -p docs/okfs/viz && okf visualize ./docs/okfs/strategies_bundle docs/okfs/viz/strategies_viz.html
+
+okf-viz-docs:
+	mkdir -p docs/okfs/viz && okf visualize ./docs/okfs/docs_bundle docs/okfs/viz/docs_viz.html
+
+okf-viz-all: okf-viz-code okf-viz-scripts okf-viz-strategies okf-viz-docs
+
+# Live dashboard
+okf-dashboard:
+	okf dashboard ./docs/okfs/code_bundle --port 8700 --open
+
+# Evaluation
+okf-eval:
+	python scripts/okf_eval.py
+
+# OKF Chat (Chainlit over ChromaDB)
+okf-chat:
+	@if [ -z "$(MODEL)" ] || [ -z "$(EMBEDDING_MODEL)" ] || [ -z "$(BASE_URL)" ]; then \
+		echo "Error: Missing required settings. Use okf-chat-local, okf-chat-nvidia, or okf-chat-cloud."; \
+		exit 1; \
+	fi
+	export LLM_PROVIDER=$(LLM_PROVIDER) && \
+	export LLM_MODEL=$(MODEL) && \
+	export EMBEDDING_MODEL=$(EMBEDDING_MODEL) && \
+	export LLM_BASE_URL=$(BASE_URL) && \
+	if [ "$(LLM_PROVIDER)" = "nvidia" ] && [ -n "$(API_KEY)" ]; then \
+		export LLM_API_KEY=$(API_KEY) && \
+		export NVIDIA_API_KEY=$(API_KEY); \
+	elif [ "$(LLM_PROVIDER)" = "cloud" ] && [ -n "$(API_KEY)" ]; then \
+		export LLM_API_KEY=$(API_KEY) && \
+		export OPENAI_API_KEY=$(API_KEY); \
+	elif [ "$(LLM_PROVIDER)" = "local" ] && [ -n "$(API_KEY)" ]; then \
+		export LLM_API_KEY=$(API_KEY); \
+	fi && \
+	echo "Starting OKF RAG chat interface..." && \
+	echo "  Provider: $(LLM_PROVIDER)" && \
+	echo "  Model: $(MODEL)" && \
+	echo "  Embedding: $(EMBEDDING_MODEL)" && \
+	echo "  Base URL: $(BASE_URL)" && \
+	chainlit run src/okf_chat.py -w --port 3000
+	chainlit run src/okf_chat.py -w --port 3000
+
+okf-chat-local: LLM_PROVIDER := local
+okf-chat-local: MODEL := mistral-nemo:12b
+okf-chat-local: EMBEDDING_MODEL := nomic-embed-text
+okf-chat-local: BASE_URL := http://localhost:11434/v1
+okf-chat-local: API_KEY := local-no-key-needed
+okf-chat-local: okf-chat
+
+okf-chat-nvidia: LLM_PROVIDER := nvidia
+okf-chat-nvidia: MODEL := nvidia/nemotron-3-ultra-550b-a55b
+okf-chat-nvidia: EMBEDDING_MODEL := nvidia/nv-embed-v1
+okf-chat-nvidia: BASE_URL := https://integrate.api.nvidia.com/v1
+okf-chat-nvidia: API_KEY := $(shell printenv NVIDIA_API_KEY)
+okf-chat-nvidia: okf-chat
+
+okf-chat-cloud: LLM_PROVIDER := cloud
+okf-chat-cloud: MODEL := gpt-4o-mini
+okf-chat-cloud: EMBEDDING_MODEL := text-embedding-3-small
+okf-chat-cloud: BASE_URL := https://api.openai.com/v1
+okf-chat-cloud: API_KEY := $(shell printenv OPENAI_API_KEY)
+okf-chat-cloud: okf-chat
+
+# Agent integration
+okf-install-agents:
+	okf install all
+
+# Lookup helper
+okf-lookup:
+	@if [ -z "$(CONCEPT)" ]; then \
+		echo "Usage: make okf-lookup CONCEPT=<ConceptName> BUNDLE=<bundle_name>"; \
+		echo "Bundles: code_bundle, scripts_bundle, strategies_bundle, docs_bundle"; \
+		exit 1; \
+	fi
+	okf lookup --bundle ./docs/okfs/$(BUNDLE) "$(CONCEPT)"
+
+# Full rebuild
+okf-full-rebuild: clean okf-generate-all okf-pipeline okf-link
+
 all: clean setup generate run
+
+okf-all: okf-full-rebuild okf-install-agents

@@ -1,4 +1,4 @@
-# SPRINTS.md — Karakana Local Context Engine
+# SPRINTS.md — Karakana Local Context Engine (OKF-Enhanced)
 
 ---
 
@@ -20,169 +20,223 @@
 
 ---
 
-## Sprint 1 — Continuous Improvement: Retrieval & Chunking (Week 1-2)
+## Sprint 0.5 — OKF Knowledge Layer (Completed — **New**)
 
-**Goal**: Fix the #1 quality bottleneck — semantic chunking and retrieval precision
+**Goal**: Build structured, agent-ready knowledge bundles from code + docs using OKF v0.2
+
+| Task | Status | Artifacts |
+|------|--------|-----------|
+| Install okf-generator v0.1.49 | ✅ Done | `.venv/bin/okf` |
+| Generate code bundle from `src/` (AST) | ✅ Done | `docs/okfs/code_bundle/` (10 concepts) |
+| Generate scripts bundle from `scripts/` | ✅ Done | `docs/okfs/scripts_bundle/` (18 concepts) |
+| Generate strategies bundle from `docs/strategies/` | ✅ Done | `docs/okfs/strategies_bundle/` (45 concepts) |
+| Convert docs/*.md → OKF bundle (custom script) | ✅ Done | `docs/okfs/docs_bundle/` (7 concepts) |
+| Semantic chunking (Phase 6) — 445 chunks | ✅ Done | `docs/okfs/chunks/*.jsonl` |
+| Embeddings with inherited OKF metadata (Phase 7) | ✅ Done | `docs/okfs/embeddings/*.jsonl` (768-dim nomic-embed-text) |
+| ChromaDB indexing with metadata filtering (Phase 8) | ✅ Done | `docs/okfs/chromadb/` (collection: `okf_knowledge`) |
+| Cross-bundle links (14 bidirectional) | ✅ Done | `## Cross-Bundle Links` in OKF files |
+| MCP server registration (4 bundles) | ✅ Done | `opencode.json` |
+| Agent integration (Claude, OpenCode, Copilot, Cursor, Windsurf, Cline) | ✅ Done | `.cursorrules`, `.clinerules`, etc. |
+
+**OKF Bundles Created:**
+```
+docs/okfs/
+├── code_bundle/           # 10 concepts: Module, Class, Function from src/bot.py
+├── scripts_bundle/        # 18 concepts: Module, Class, Function from scripts/
+├── strategies_bundle/     # 45 concepts: Strategy322sgo class + 43 methods
+├── docs_bundle/           # 7 concepts: Spec, DeploymentGuide, Workflow, Quickstart, Config
+├── chunks/                # 445 semantic chunks (JSONL per bundle)
+├── embeddings/            # 445 embeddings + metadata (JSONL per bundle)
+└── chromadb/              # Persistent vector store (445 vectors, full metadata)
+```
+
+**Cross-Bundle Links (14):**
+| Source Bundle | Source Concept | → | Target Bundle | Target Concept | Relationship |
+|---------------|----------------|---|---------------|----------------|--------------|
+| docs_bundle | FREQTRADE_STRATEGY_SPEC | → | strategies_bundle | Strategy322sgo | specifies / implements |
+| docs_bundle | rdql-karakana-freqtrade-workflow | → | scripts_bundle | quizgen | describes_pipeline / generates_qa_for |
+| docs_bundle | rdql-karakana-freqtrade-workflow | → | scripts_bundle | convert_docs_to_okf | uses_tool / converts_docs_for |
+| docs_bundle | freqtrade-karakana-deployment | → | docs_bundle | docker-compose | references_config |
+| docs_bundle | freqtrade-karakana-deployment | → | docs_bundle | freqtrade-karakana-thresholds | uses_thresholds |
+| docs_bundle | freqtrade-karakana-quickstart | → | docs_bundle | freqtrade-karakana-deployment | guides_to |
+| docs_bundle | freqtrade-karakana-quickstart | → | strategies_bundle | Strategy322sgo | starts_strategy / implements |
+| strategies_bundle | Strategy322sgo | → | docs_bundle | FREQTRADE_STRATEGY_SPEC | implements |
+| strategies_bundle | Strategy322sgo/populate_entry_trend | → | docs_bundle | FREQTRADE_STRATEGY_SPEC | implements_section |
+| strategies_bundle | Strategy322sgo/populate_exit_trend | → | docs_bundle | FREQTRADE_STRATEGY_SPEC | implements_section |
+| strategies_bundle | Strategy322sgo/confirm_trade_entry | → | docs_bundle | freqtrade-karakana-deployment | used_in_deployment |
+| scripts_bundle | quizgen | → | docs_bundle | rdql-karakana-freqtrade-workflow | generates_qa_for |
+| scripts_bundle | convert_docs_to_okf | → | docs_bundle | rdql-karakana-freqtrade-workflow | converts_docs_for |
+| code_bundle | bot/NVIDIAEmbeddings | → | docs_bundle | rdql-karakana-freqtrade-workflow | provides_embeddings_for |
+
+---
+
+## Sprint 1 — RAG Chat Interface & Incremental Updates (Week 1)
+
+**Goal**: Interactive querying over OKF bundles + keep bundles fresh during development
 
 ### Stories
 
 | ID | Story | Acceptance Criteria | Effort |
 |----|-------|---------------------|--------|
-| CI-1 | Replace `RecursiveCharacterTextSplitter` with semantic splitters | - Python: `PythonCodeTextSplitter` (AST-based)<br>- Markdown: `MarkdownHeaderTextSplitter`<br>- No mid-function/class splits | 3 pts |
-| CI-2 | Remove 12k char truncation in Pass 1 | Full document ingestion via sliding window with overlap | 2 pts |
-| CI-3 | Replace fixed 1500-char windows in Pass 2 with semantic chunks | Chunks align to logical units (functions, classes, sections) | 3 pts |
-| CI-4 | Add cross-encoder reranker (bge-reranker-base) | Top-k=8 → rerank to 4; measurable recall@4 improvement | 2 pts |
-| CI-5 | Add metadata filtering to retriever | Filter by file_type (md/py), module path, tag | 2 pts |
+| **OKF-1** | Chainlit RAG chat over ChromaDB with metadata filters | - Query: "How does populate_entry_trend work?"<br>- Filter: `type=Function AND tags=karakana`<br>- Citations show `[Source: bundle/concept]`<br>- Uses pre-computed embeddings (no re-generation) | 3 pts |
+| **OKF-2** | Makefile targets for incremental bundle updates | `make okf-update-code` → `okf update ./src ./docs/okfs/code_bundle`<br>`make okf-update-docs` → `okf update ./docs ./docs/okfs/docs_bundle`<br>`make okf-update-all` → updates all 4 bundles<br>`make okf-watch` → watchdog-based auto-regen | 2 pts |
+| **OKF-3** | Cross-bundle query routing | Detect query intent → route to relevant bundle(s)<br>- "how to deploy" → docs_bundle (DeploymentGuide)<br>- "what does populate_entry_trend do" → strategies_bundle<br>- "quizgen usage" → scripts_bundle | 2 pts |
+| **OKF-4** | OKF lookup command for agents | `okf lookup --bundle ./docs/okfs/code_bundle NVIDIAEmbeddings`<br>Returns structured concept card (signature, params, calls, callers)<br>Agent integration: `/lookup NAME=<ConceptName>` in OpenCode | 1 pt |
 
 ### Definition of Done
-- [ ] Golden Q&A set (20 questions) created from docs
-- [ ] RAGAS evaluation baseline recorded
-- [ ] CI-1 through CI-5 implemented
-- [ ] RAGAS recall@4 improves ≥20% vs baseline
+- [ ] Chainlit app runs: `make okf-chat` → queries all 4 bundles
+- [ ] Metadata filters work: `filter={"type": "Function", "tags": "karakana"}`
+- [ ] Incremental update < 10s for single file change
+- [ ] `okf lookup` returns concept card in < 100ms
 
 ---
 
-## Sprint 2 — Continuous Improvement: Generation Quality (Week 3-4)
+## Sprint 2 — Knowledge Graph Visualization (Week 1-2)
 
-**Goal**: Improve answer correctness and completeness
+**Goal**: Interactive visual exploration of code + doc relationships
 
 ### Stories
 
 | ID | Story | Acceptance Criteria | Effort |
 |----|-------|---------------------|--------|
-| CI-6 | Add few-shot examples to Pass 1/2 generation prompts | 3 examples per pass; format matches expected JSONL | 2 pts |
-| CI-7 | Add explicit "abstain if insufficient context" instruction | LLM returns "I cannot find that" when context lacks answer | 1 pt |
-| CI-8 | Add citation format enforcement in generation | All answers include `[Source: filename]` inline | 1 pt |
-| CI-9 | Temperature sweep + config (optional: evaluation | Find optimal temp per provider (0.1-0.5) | 2 pts |
-| CI-10 | Add query expansion (synonyms, abbreviations) | Retrieval recall improves on terminology-mismatch queries | 3 pts |
+| **OKF-5** | Generate D3.js visualizations for all bundles | `make okf-viz-code` → `docs/okfs/viz/code_viz.html`<br>`make okf-viz-docs` → `docs/okfs/viz/docs_viz.html`<br>`make okf-viz-strategies` → `docs/okfs/viz/strategies_viz.html`<br>`make okf-viz-all` → combined graph | 2 pts |
+| **OKF-6** | Live dashboard with 3-panel browser | `make okf-dashboard` → FastAPI at `http://localhost:8700`<br>Panel 1: Search/filter concepts<br>Panel 2: Concept detail (signature, relationships)<br>Panel 3: Force-directed graph (click to navigate) | 3 pts |
+| **OKF-7** | Cross-bundle graph edges visible | Visual links between bundles:<br>- Spec → Strategy (implements)<br>- Workflow → Scripts (generates_qa_for)<br>- Quickstart → Strategy (starts_strategy)<br>Edge types colored by relationship | 2 pts |
+| **OKF-8** | Export graph to GraphML/JSON for external tools | `okf visualize --format graphml ./docs/okfs/code_bundle`<br>Importable in Gephi, Neo4j, Graphistry | 1 pt |
 
 ### Definition of Done
-- [ ] Answer accuracy (human eval on 20 Q) improves ≥25%
-- [ ] Abstain rate on out-of-scope queries ≥80%
-- [ ] Citation compliance 100% on in-scope answers
+- [ ] 4 HTML visualizations open in browser with search + filter
+- [ ] Dashboard runs on `make okf-dashboard` with live reload
+- [ ] Cross-bundle edges visible and clickable
+- [ ] GraphML export loads in Gephi
 
 ---
 
-## Sprint 3 — Continuous Improvement: Deduplication & Coverage (Week 5)
+## Sprint 3 — Evaluation Harness & Quality Gates (Week 2-3)
 
-**Goal**: Eliminate noise, improve knowledge coverage
+**Goal**: Measurable retrieval/generation quality with regression prevention
 
 ### Stories
 
 | ID | Story | Acceptance Criteria | Effort |
 |----|-------|---------------------|--------|
-| CI-11 | Semantic deduplication of Q&A pairs | Embedding similarity threshold (e.g., 0.92) removes near-duplicates | 2 pts |
-| CI-12 | Coverage analysis: which docs/chunks generated 0 Q&A | Report showing un-queried sections | 2 pts |
-| CI-13 | Adaptive question count per chunk complexity | More questions for dense logic, fewer for boilerplate | 3 pts |
-| CI-14 | Pass 2: chunk-aware prompt (pass chunk metadata to LLM) | LLM knows function/class name when generating Q&A | 2 pts |
+| **OKF-9** | Golden Q&A curation (50 pairs) | `eval/golden_qa.jsonl` with 50 Q/A covering:<br>- 10 Architecture (modules, data flow)<br>- 10 Strategy logic (entry/exit/risk)<br>- 10 Deployment (docker, thresholds, config)<br>- 10 Code API (signatures, params, returns)<br>- 10 Workflow (training → inference → shadow)<br>Each: question, ideal_answer, expected_concept_ids[], difficulty | 3 pts |
+| **OKF-10** | RAGAS evaluation pipeline | `make okf-eval` runs:<br>- Faithfulness (answer ↔ context)<br>- Answer Relevancy (answer ↔ question)<br>- Context Precision (retrieved ↔ relevant)<br>- Context Recall (golden concepts retrieved)<br>Outputs JSON report with per-query scores | 3 pts |
+| **OKF-11** | Retrieval quality baseline | Measure on golden set:<br>- Recall@4 ≥ 0.75 (golden concept in top-4)<br>- MRR ≥ 0.6<br>- Latency p95 < 500ms<br>Document baseline in `eval/baseline_report.json` | 2 pts |
+| **OKF-12** | CI regression gate | GitHub Action on PR:<br>`make okf-eval` → fail if faithfulness drops >5%<br>Post PR comment with score deltas<br>Artifact upload: eval report | 2 pts |
+| **OKF-13** | OKF-specific eval metrics | - Concept retrieval accuracy (exact concept_id match)<br>- Cross-bundle link traversal success rate<br>- Metadata filter precision (type/tag/bundle)<br>- Chunk-to-concept mapping correctness | 2 pts |
 
 ### Definition of Done
-- [ ] Q&A count reduced ≥15% via dedup with no recall loss
-- [ ] Coverage report shows ≥95% of non-boilerplate chunks have ≥1 Q&A
-- [ ] Generated Q&A reference specific functions/classes (not generic)
+- [ ] `eval/golden_qa.jsonl` with 50 expert-verified Q/A
+- [ ] `make okf-eval` runs RAGAS + OKF metrics in < 2 min
+- [ ] Baseline recorded: recall@4, MRR, latency
+- [ ] GitHub Action fails PR on regression >5%
+- [ ] PR comment shows before/after scores
 
 ---
 
-## Sprint 4 — Continuous Improvement: Evaluation & Monitoring (Week 6)
+## Sprint 4 — Production Hardening & Advanced Retrieval (Week 3-4)
 
-**Goal**: Make quality measurable and regression-proof
+**Goal**: Production-ready retrieval with hybrid search, incremental updates, query routing
 
 ### Stories
 
 | ID | Story | Acceptance Criteria | Effort |
 |----|-------|---------------------|--------|
-| CI-15 | Integrate RAGAS (faithfulness, answer_relevancy, context_precision) | Automated eval on golden set after each sprint | 3 pts |
-| CI-16 | Golden Q&A curation: 50 human-verified Q/A pairs | Covers architecture, configs, data flows, error handling | 3 pts |
-| CI-17 | CI pipeline: run eval on PR, fail if regression >5% | GitHub Actions / local script | 2 pts |
-| CI-18 | Dashboard: retrieval latency, answer latency, token usage | Basic logging + optional Grafana/Prometheus | 2 pts |
+| **OKF-14** | Hybrid search (BM25 + vector) | ChromaDB + BM25 (rank-bm25):<br>- Keyword queries: "populate_entry_trend" → exact match first<br>- Semantic queries: "entry logic" → vector similarity<br>- Fusion: reciprocal rank fusion (RRF) with k=60<br>- Improves exact-match recall ≥30% | 3 pts |
+| **OKF-15** | Parent document retrieval | For small chunks (< 500 chars):<br>- Retrieve parent concept (full OKF document)<br>- Return parent + chunk context<br>- Improves answer completeness for fragmented concepts | 2 pts |
+| **OKF-16** | Query classification & routing | LLM classifier (cheap model) detects intent:<br>- `HOW_TO` → DeploymentGuide + Quickstart<br>- `DEBUG` → Function signatures + error handling<br>- `ARCH` → Spec + Module overview<br>- `CONFIG` → Config + Thresholds<br>Routes to relevant bundles + adjusts retrieval k | 3 pts |
+| **OKF-17** | Incremental indexing pipeline | `okf update --watch` + file watcher:<br>- SHA256 manifest tracks mtime + content hash<br>- Only re-parse changed files<br>- Re-link only dirty concepts<br>- Edge-diff detects cascade changes<br>- Target: < 5s for single file change | 3 pts |
+| **OKF-18** | Training data export | `okf pairs ./docs/okfs/code_bundle ./train.jsonl`<br>Generates 5 pair types: codegen, qa, doc, summarize, crosslink<br>Ready for fine-tuning private SLM on project knowledge | 2 pts |
 
 ### Definition of Done
-- [ ] RAGAS runs automatically on `make eval`
-- [ ] Golden set ≥50 Q&A
-- [ ] Regression gate active in CI
+- [ ] Hybrid search improves exact-match queries ≥30% recall
+- [ ] `okf update --watch` re-indexes single file change in < 5s
+- [ ] Query classifier routes 90%+ correctly on golden set
+- [ ] Training JSONL has ≥ 500 pairs across 5 types
 
 ---
 
-## Sprint 5 — Continuous Improvement: Advanced Retrieval (Week 7-8)
+## Sprint 5 — UX & Agent Experience Polish (Week 4)
 
-**Goal**: Production-grade retrieval
+**Goal**: Seamless developer + agent experience
 
 ### Stories
 
 | ID | Story | Acceptance Criteria | Effort |
 |----|-------|---------------------|--------|
-| CI-19 | Hybrid search (BM25 + vector) | Keyword + semantic fusion; better exact-match recall | 3 pts |
-| CI-20 | Parent document retrieval | Retrieve full parent doc for small chunks | 3 pts |
-| CI-21 | Query classification → routing | Detect "how-to", "debug", "arch", "config" → different prompts | 3 pts |
-| CI-22 | Incremental indexing | Only re-embed changed files on `make generate` | 3 pts |
+| **OKF-19** | Source preview in chat UI | Click citation → opens OKF concept card in side panel<br>Shows: signature, docstring, callers, callees, source lines<br>Chainlit action buttons: "Open in Editor", "Show Callers", "Show Callees" | 3 pts |
+| **OKF-20** | Conversation persistence | SQLite session store at `~/.okf/sessions/`<br>Survives restarts, multiple sessions per project<br>`make okf-chat --session <name>` | 2 pts |
+| **OKF-21** | Feedback collection (👍/👎) | Buttons on each answer → logs to `eval/feedback.jsonl`<br>Includes: query, answer, retrieved concept_ids, user rating<br>Export for RLHF / prompt iteration | 2 pts |
+| **OKF-22** | Agent instruction generation | `okf install all` updates:<br>- `.cursorrules` with bundle-specific lookup patterns<br>- `.github/copilot-instructions.md` with cross-bundle examples<br>- `.clinerules` with MCP tool usage<br>Auto-generated from bundle metadata | 2 pts |
+| **OKF-23** | Dark/light theme + responsive UI | Chainlit theme toggle, mobile-friendly layout | 1 pt |
 
 ### Definition of Done
-- [ ] Hybrid search improves exact-match queries ≥30%
-- [ ] Incremental generate <10s for single file change
-- [ ] Query routing improves specialized answer quality
+- [ ] Click citation → concept card opens with full context
+- [ ] Sessions persist across restarts
+- [ ] Feedback logs exportable for fine-tuning
+- [ ] `okf install all` generates agent configs matching current bundles
 
 ---
 
-## Sprint 6 — Continuous Improvement: UX & Polish (Week 9)
+## Sprint 6 — Multi-Repo Federation & Automation (Week 5)
 
-**Goal**: Developer experience
+**Goal**: Scale beyond single repo, automate knowledge freshness
 
 ### Stories
 
 | ID | Story | Acceptance Criteria | Effort |
 |----|-------|---------------------|--------|
-| CI-23 | Source preview in chat UI (click to open file:line) | Chainlit action buttons open source in editor | 3 pts |
-| CI-24 | Conversation history persistence across restarts | SQLite/JSONL session store | 2 pts |
-| CI-25 | Feedback buttons (👍/👎) on answers | Logs for RLHF / prompt iteration | 2 pts |
-| CI-26 | Dark/light theme toggle | Chainlit config | 1 pt |
+| **OKF-24** | Multi-repo bundle federation | `okf generate --federate ./repo1 ./repo2 ./repo3`<br>Creates `federated_bundle/` with cross-repo links<br>Resolves imports across repos (Git submodules or remote URLs) | 5 pts |
+| **OKF-25** | GitHub webhook auto-update | GitHub Action on push:<br>- `okf update` on changed files<br>- Commits updated bundle to `okf-bundle` branch<br>- Opens PR with diff summary (`okf diff --impact`)<br>- Auto-merges if tests pass | 3 pts |
+| **OKF-26** | Scheduled bundle refresh | Cron job (daily):<br>- `okf update --force` all bundles<br>- Re-embeds if model changed<br>- Runs eval, alerts on regression<br>- Updates dashboard cache | 2 pts |
+| **OKF-27** | Bundle versioning & release | Semantic versioning for bundles:<br>- `okf bundle version bump --minor`<br>- Tags: `okf-bundle/v1.2.0`<br>- Changelog auto-generated from `log.md`<br>- Release artifacts: bundle.tar.gz, graphml, pairs.jsonl | 2 pts |
+
+### Definition of Done
+- [ ] Federated bundle links across 3+ repos
+- [ ] GitHub Action auto-updates bundles on push
+- [ ] Daily cron refreshes + eval + alerting
+- [ ] Versioned releases with changelogs
 
 ---
 
-## Backlog (Post-Sprint 6)
+## Quality Metrics Dashboard (Updated with OKF Baselines)
 
-| ID | Idea | Priority |
-|----|------|----------|
-| B-1 | Multi-hop reasoning (decompose → retrieve → synthesize) | High |
-| B-2 | Code-aware embeddings (CodeBERT, UniXcoder) | High |
-| B-3 | Graph RAG (entity-relationship from code) | Medium |
-| B-4 | Auto-update Q&A on git push (webhook) | Medium |
-| B-5 | Multi-repo federation | Low |
-| B-6 | Private LLM fine-tuning on Q&A pairs | Low |
-
----
-
-## Quality Metrics Dashboard
-
-| Metric | Baseline (Sprint 0) | Sprint 1 Target | Sprint 2 Target | Sprint 3 Target | Sprint 4 Target |
-|--------|---------------------|-----------------|-----------------|-----------------|-----------------|
-| Recall@4 (RAGAS) | TBD | +20% | +30% | +35% | +40% |
-| Faithfulness | TBD | — | +15% | +25% | +30% |
-| Answer Relevancy | TBD | — | +20% | +25% | +30% |
-| Abstain Rate (OOS) | TBD | — | 80% | 90% | 95% |
-| Citation Compliance | TBD | — | 100% | 100% | 100% |
-| Q&A Dedup Reduction | 0% | — | — | 15% | 20% |
-| Coverage (non-boilerplate) | TBD | — | — | 95% | 98% |
-| Retrieval Latency (p95) | TBD | <2s | <1.5s | <1s | <1s |
-| Generation Latency (p95) | TBD | <5s | <4s | <3s | <3s |
+| Metric | Sprint 0 Baseline | Sprint 1 Target | Sprint 2 Target | Sprint 3 Target | Sprint 4 Target |
+|--------|-------------------|-----------------|-----------------|-----------------|-----------------|
+| Recall@4 (RAGAS) | TBD | 0.60 | 0.70 | 0.75 | 0.80 |
+| MRR | TBD | 0.50 | 0.55 | 0.60 | 0.65 |
+| Faithfulness | TBD | 0.70 | 0.80 | 0.85 | 0.90 |
+| Answer Relevancy | TBD | 0.70 | 0.80 | 0.85 | 0.90 |
+| Concept Retrieval Accuracy | TBD | 0.65 | 0.75 | 0.85 | 0.90 |
+| Cross-Bundle Link Traversal | TBD | 0.80 | 0.85 | 0.90 | 0.95 |
+| Metadata Filter Precision | TBD | 0.85 | 0.90 | 0.95 | 0.98 |
+| Abstain Rate (OOS) | TBD | 60% | 75% | 85% | 90% |
+| Citation Compliance | TBD | 90% | 95% | 100% | 100% |
+| Retrieval Latency (p95) | TBD | <1s | <500ms | <300ms | <200ms |
+| Incremental Update (1 file) | N/A | <10s | <5s | <3s | <2s |
 
 ---
 
-## Evaluation Protocol
+## Evaluation Protocol (OKF-Enhanced)
 
-### Golden Set Creation (Sprint 4)
-1. Sample 50 questions from real usage + architecture docs
-2. Human expert writes ideal answer with citations
-3. Store as `eval/golden_qa.jsonl`
+### Golden Set Creation (Sprint 3)
+1. Sample 50 questions from real usage + architecture docs + strategy code
+2. Human expert writes ideal answer with citations to **concept_ids**
+3. Store as `eval/golden_qa.jsonl`:
+```jsonl
+{"question": "How does populate_entry_trend work?", "ideal_answer": "...", "expected_concept_ids": ["strategies/Strategy322sgo/populate_entry_trend", "docs/FREQTRADE_STRATEGY_SPEC"], "difficulty": "medium", "bundle": "strategies_bundle"}
+```
 
 ### Per-Sprint Evaluation
 ```bash
-make eval  # Runs RAGAS on golden set, outputs JSON report
+make okf-eval  # Runs RAGAS + OKF metrics, outputs JSON report
 ```
 
-### Regression Gate
+### Regression Gate (GitHub Actions)
 ```yaml
-# .github/workflows/eval.yml
-- run: make eval
+# .github/workflows/okf-eval.yml
+- run: make okf-eval
 - uses: actions/github-script@v7
   if: ${{ steps.eval.outputs.faithfulness < 0.75 }}
   with:
@@ -191,23 +245,137 @@ make eval  # Runs RAGAS on golden set, outputs JSON report
 
 ---
 
-## Notes for Implementers
+## OKF-Specific Implementation Notes
 
-### Semantic Chunking Options (CI-1)
-| Language | Splitter | Install |
-|----------|----------|---------|
-| Python | `langchain_text_splitters.PythonCodeTextSplitter` | `langchain-text-splitters` |
-| Markdown | `langchain_text_splitters.MarkdownHeaderTextSplitter` | `langchain-text-splitters` |
-| Generic | `langchain_experimental.text_splitter.SemanticChunker` | `langchain-experimental` |
+### Bundle Structure Reference
+```
+<bundle>/
+├── index.md              # Bundle root — lists top-level dirs
+├── log.md                # Generation history
+├── <domain>/             # Mirrors source tree
+│   ├── index.md          # Directory listing
+│   ├── <module>.md       # Module concept
+│   └── <module>/         # Subdir for class/function concepts
+│       ├── <Class>.md
+│       └── <function>.md
+```
 
-### Reranker Options (CI-4)
-| Model | Dim | Speed | Quality |
-|-------|-----|-------|---------|
-| bge-reranker-base | 768 | Fast | Good |
-| bge-reranker-large | 1024 | Medium | Best |
-| cross-encoder/ms-marco-MiniLM-L-6-v2 | 384 | Very Fast | Adequate |
+### Concept Frontmatter (OKF v0.2)
+```yaml
+---
+okf_version: "0.2"
+type: "Function"           # Module | Class | Function | Method | Dependency
+title: "populate_entry_trend"
+description: "Generates entry signals using SAR + RSI + volume"
+resource: "strategies/Strategy322sgo.py"
+tags: 
+  - "lang:python"
+  - "type:Function"
+  - "module:strategies"
+  - "domain:Strategy322sgo.py"
+  - "git:branch:main"
+  - "git:repo:askode"
+  - "freqtrade"
+  - "karakana"
+  - "strategy"
+timestamp: "2026-07-10T05:38:37Z"
+concept_id: "strategies/Strategy322sgo/populate_entry_trend"
+---
+```
 
-### Query Expansion (CI-10)
-- Use LLM to generate 3-5 query variants (synonyms, abbreviations, related terms)
-- Retrieve union, deduplicate, rerank
-- Cost: +1 LLM call per query; acceptable for chat latency budget
+### Cross-Bundle Link Format
+```markdown
+## Cross-Bundle Links
+
+* implements: [FREQTRADE_STRATEGY_SPEC](/docs_bundle/FREQTRADE_STRATEGY_SPEC.md) (in docs_bundle)
+* called_by: [confirm_trade_entry](/strategies_bundle/Strategy322sgo/confirm_trade_entry.md)
+```
+
+### MCP Tools Available (11 per bundle)
+| Tool | Purpose |
+|------|---------|
+| `lookup` | Search concepts by name/type/tag |
+| `get_concept` | Full detail by concept_id |
+| `find_callers` | Concepts that reference given concept |
+| `find_callees` | Concepts referenced by given concept |
+| `list_by_file` | All concepts from a source file |
+| `list_dependencies` | External deps (pip, npm, cargo, etc.) |
+| `bundle_info` | Bundle stats (counts by type) |
+| `list_by_type` | Filter by Module/Class/Function |
+| `search_by_tag` | Tag prefix search (e.g., `lang:python`) |
+| `get_related` | Combined callers + callees + related |
+| `get_manifest_source` | Manifest file for dependency concepts |
+
+### Agent Integration Patterns
+```markdown
+# Add to agent instructions
+This project has OKF knowledge bundles at ./docs/okfs/:
+- code_bundle/ — src/ AST concepts
+- scripts_bundle/ — scripts/ AST concepts  
+- strategies_bundle/ — Strategy322sgo implementation
+- docs_bundle/ — Specs, guides, workflows, configs
+
+BEFORE reading any source file, ALWAYS run:
+  okf lookup --bundle ./docs/okfs/<bundle> <ConceptName>
+
+Common lookups:
+  okf lookup --bundle ./docs/okfs/code_bundle NVIDIAEmbeddings
+  okf lookup --bundle ./docs/okfs/strategies_bundle Strategy322sgo
+  okf lookup --bundle ./docs/okfs/docs_bundle "Freqtrade Karakana Deployment"
+```
+
+---
+
+## Next Actions (Priority Order)
+
+1. **Sprint 1: OKF-1, OKF-2, OKF-3, OKF-4** — RAG chat + incremental updates + query routing + agent lookup
+2. **Sprint 2: OKF-5, OKF-6, OKF-7, OKF-8** — Visualizations + dashboard
+3. **Sprint 3: OKF-9, OKF-10, OKF-11, OKF-12, OKF-13** — Golden set + eval + CI gate
+4. **Sprint 4: OKF-14, OKF-15, OKF-16, OKF-17, OKF-18** — Hybrid search + parent retrieval + query routing + incremental + training export
+5. **Sprint 5: OKF-19, OKF-20, OKF-21, OKF-22, OKF-23** — Source preview + sessions + feedback + agent configs
+6. **Sprint 6: OKF-24, OKF-25, OKF-26, OKF-27** — Federation + webhook + cron + versioning
+
+---
+
+## Makefile Targets to Add
+
+```makefile
+# OKF Bundle Generation
+okf-generate-code:      okf generate ./src ./docs/okfs/code_bundle
+okf-generate-scripts:   okf generate ./scripts ./docs/okfs/scripts_bundle
+okf-generate-strategies: okf generate ./docs/strategies ./docs/okfs/strategies_bundle
+okf-generate-docs:      python scripts/convert_docs_to_okf.py --source docs --output docs/okfs/docs_bundle
+okf-generate-all:       okf-generate-code okf-generate-scripts okf-generate-strategies okf-generate-docs
+
+# OKF Incremental Updates
+okf-update-code:        okf update ./src ./docs/okfs/code_bundle
+okf-update-docs:        okf update ./docs ./docs/okfs/docs_bundle
+okf-update-strategies:  okf update ./docs/strategies ./docs/okfs/strategies_bundle
+okf-update-scripts:     okf update ./scripts ./docs/okfs/scripts_bundle
+okf-update-all:         okf-update-code okf-update-docs okf-update-strategies okf-update-scripts
+okf-watch:              okf update ./src ./docs/okfs/code_bundle --watch & okf update ./docs ./docs/okfs/docs_bundle --watch
+
+# OKF Pipeline
+okf-chunk:              python scripts/chunk_okf_bundles.py --bundle docs/okfs/code_bundle --bundle docs/okfs/docs_bundle --bundle docs/okfs/scripts_bundle --bundle docs/okfs/strategies_bundle --output docs/okfs/chunks
+okf-embed:              python scripts/generate_embeddings.py
+okf-index:              python scripts/index_to_chromadb.py
+okf-links:              python scripts/add_cross_bundle_links.py
+okf-viz-code:           okf visualize ./docs/okfs/code_bundle docs/okfs/viz/code_viz.html
+okf-viz-docs:           okf visualize ./docs/okfs/docs_bundle docs/okfs/viz/docs_viz.html
+okf-viz-strategies:     okf visualize ./docs/okfs/strategies_bundle docs/okfs/viz/strategies_viz.html
+okf-viz-all:            okf-viz-code okf-viz-docs okf-viz-strategies
+okf-dashboard:          okf dashboard ./docs/okfs/code_bundle --open & okf dashboard ./docs/okfs/docs_bundle --open & okf dashboard ./docs/okfs/strategies_bundle --open
+
+# OKF Chat & Eval
+okf-chat:               chainlit run src/okf_chat.py -w
+okf-eval:               python scripts/okf_eval.py --golden eval/golden_qa.jsonl --chroma docs/okfs/chromadb --collection okf_knowledge
+okf-pairs:              okf pairs ./docs/okfs/code_bundle ./train.jsonl
+
+# OKF Agent Setup
+okf-install:            okf install all
+okf-mcp-install:        okf mcp ./docs/okfs/code_bundle --install && okf mcp ./docs/okfs/docs_bundle --install && okf mcp ./docs/okfs/strategies_bundle --install && okf mcp ./docs/okfs/scripts_bundle --install
+```
+
+---
+
+*Last Updated: 2026-07-16 — OKF Sprint 0.5 complete, ready for Sprint 1*

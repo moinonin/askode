@@ -15,20 +15,20 @@ from langchain_core.embeddings import Embeddings
 
 class NVIDIAEmbeddings(Embeddings):
     """Custom NVIDIA embeddings that bypasses tiktoken tokenization."""
-    
+
     def __init__(self, model: str, base_url: str, api_key: str):
         self.model = model
         self.base_url = base_url
         self.api_key = api_key
         self.client = openai.OpenAI(base_url=base_url, api_key=api_key)
-    
+
     def embed_documents(self, texts: list[str]) -> list[list[float]]:
         result = self.client.embeddings.create(
             model=self.model,
             input=texts
         )
         return [d.embedding for d in result.data]
-    
+
     def embed_query(self, text: str) -> list[float]:
         return self.embed_documents([text])[0]
 
@@ -39,11 +39,11 @@ load_dotenv(override=False)
 # System Engine Paths
 DOCS_DIR = os.getenv("DOCS_DIR", "./docs")
 LLM_PROVIDER = os.getenv("LLM_PROVIDER", "local")
-LLM_MODEL = os.getenv("LLM_MODEL") or ("mistral-nemo:12b" if LLM_PROVIDER == "local" else 
-                                          "nvidia/nemotron-3-ultra-550b-a55b" if LLM_PROVIDER == "nvidia" else 
-                                          "gpt-4o-mini")
-LLM_BASE_URL = os.getenv("LLM_BASE_URL") or ("http://localhost:11434/v1" if LLM_PROVIDER == "local" else 
-                                               "https://integrate.api.nvidia.com/v1" if LLM_PROVIDER == "nvidia" else 
+LLM_MODEL = os.getenv("LLM_MODEL") or ("mistral-nemo:12b" if LLM_PROVIDER == "local" else
+                                         "nvidia/nemotron-3-ultra-550b-a55b" if LLM_PROVIDER == "nvidia" else
+                                         "gpt-4o-mini")
+LLM_BASE_URL = os.getenv("LLM_BASE_URL") or ("http://localhost:11434/v1" if LLM_PROVIDER == "local" else
+                                               "https://integrate.api.nvidia.com/v1" if LLM_PROVIDER == "nvidia" else
                                                "https://api.openai.com/v1")
 LLM_API_KEY = os.getenv("LLM_API_KEY", "local-no-key-needed")
 NVIDIA_API_KEY = os.getenv("NVIDIA_API_KEY", LLM_API_KEY)
@@ -58,8 +58,8 @@ CHUNKING_SIZE = int(os.getenv("CHUNKING_SIZE", 1500))
 CHUNKING_OVERLAP = int(os.getenv("CHUNKING_OVERLAP", 150))
 
 # EMBEDDING_MODEL - use explicit env var or default based on provider
-EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL") or ("nomic-embed-text" if LLM_PROVIDER == "local" else 
-                                                    "nvidia/nv-embed-v1" if LLM_PROVIDER == "nvidia" else 
+EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL") or ("nomic-embed-text" if LLM_PROVIDER == "local" else
+                                                    "nvidia/nv-embed-v1" if LLM_PROVIDER == "nvidia" else
                                                     "text-embedding-3-small")
 
 
@@ -69,7 +69,7 @@ def load_project_files(directory_path: str):
     if not base_dir.exists():
         print(f"Error: Target directory '{directory_path}' does not exist.")
         return []
-    
+
     for ext in ["**/*.md", "**/*.py"]:
         for file_path in base_dir.glob(ext):
             try:
@@ -121,15 +121,40 @@ def run_generation():
         "- The document's purpose and role in the system\n"
         "- Key architectural decisions and trade-offs\n"
         "- Important configurations, interfaces, or data flows\n"
-        "- Non-obvious assumptions or invariants\n\n"
-        "Each question must be answerable from the document alone. "
-        "Avoid generic questions (e.g., 'What is this file?'). "
-        "Prefer specific, referenceable insights.\n\n"
+        "- Non-obvious assumptions or invariants\n"
+        "- **Deployment procedures, service restart sequences, and operational procedures**\n"
+        "- **Health checks, service dependencies, and recovery/rollback procedures**\n"
+        "- **Service restart triggers, hot-reload capabilities, hot-swap procedures**\n"
+        "- **Health check endpoints, readiness/liveness probes, and failure modes**\n"
+        "- **How to update configs/weights without downtime, watch directories, file watching**\n"
+        "- **What services auto-restart vs manual restart, Docker restart policies**\n\n"
+        "CRITICAL RULES (VIOLATION = INVALID OUTPUT):\n"
+        "1. Answer ONLY from the provided document. If information is not in the document, say \"Not specified in the provided document.\"\n"
+        "2. Do NOT invent environment variables, endpoints, or behaviors not explicitly in the document.\n"
+        "3. Do NOT use general knowledge to fill gaps. If the document does not contain the answer, state that.\n"
+        "4. Each Q&A must be grounded in the document. If the document is too generic (boilerplate, imports only), return empty array [].\n"
+        "5. Do not hallucinate beyond the provided text.\n\n"
+        "Output Schema (JSON only, no markdown, no extra text):\n"
+        "[\n"
+        "  {{\n"
+        "    \"question\": \"string\",\n"
+        "    \"answer\": \"string\",\n"
+        "    \"category\": \"Architecture|Configuration|Deployment|Operations|Integration|Data Model|Security|Performance|Business Logic|Algorithm|API|State|Error Handling|Lifecycle|Extension Point\",\n"
+        "    \"importance\": \"Critical|High|Medium|Low\",\n"
+        "    \"concepts\": [\"string\", \"...\"],\n"
+        "    \"confidence\": 0.0-1.0\n"
+        "  }}\n"
+        "]\n"
+        "Rules:\n"
+        "- Category must be one of the listed values\n"
+        "- Importance must be Critical|High|Medium|Low\n"
+        "- Concepts: 3-8 tags representing key engineering concepts\n"
+        "- Confidence: 0.0-1.0, how grounded the answer is in the document\n"
+        "- Return ONLY raw JSON array. No backticks, no markdown.\n"
+        "- If document is too generic (boilerplate, imports only), return empty array []\n\n"
         "Document: {source}\n"
         "Content:\n{text}\n\n"
-        "{format_instructions}\n"
-        "Return ONLY raw JSON array. No backticks, no markdown."
-    ).partial(format_instructions=parser.get_format_instructions())
+    )
 
     code_prompt = ChatPromptTemplate.from_template(
         "You are a Senior Software Engineer creating a technical Q&A reference for this codebase.\n"
@@ -138,15 +163,41 @@ def run_generation():
         "- Edge cases, error handling, invariants\n"
         "- Configuration keys, environment variables, constants\n"
         "- Non-obvious logic, algorithms, or side effects\n"
-        "- Dependencies and coupling\n\n"
-        "Each Q&A must be grounded in the snippet. "
-        "If the snippet is too generic (boilerplate, imports only), return empty array []."
-        "Do not hallucinate beyond the provided text.\n\n"
+        "- Dependencies and coupling\n"
+        "- **Service restart triggers, hot-reload capabilities, and hot-swap procedures**\n"
+        "- **Health check endpoints, readiness/liveness probes, and failure modes**\n"
+        "- **Why this algorithm/approach was chosen, architectural trade-offs**\n"
+        "- **What assumptions this component makes about its inputs/environment**\n"
+        "- **What could break if this logic changes, what depends on this behavior**\n"
+        "- **What state must exist before this method is called**\n"
+        "- **What guarantees this function provides, under what conditions**\n\n"
+        "CRITICAL RULES (VIOLATION = INVALID OUTPUT):\n"
+        "1. Answer ONLY from the provided snippet. If information is not in the snippet, say \"Not specified in the provided snippet.\"\n"
+        "2. Do NOT invent environment variables, endpoints, or behaviors not explicitly in the snippet.\n"
+        "3. Do NOT use general knowledge to fill gaps. If the snippet does not contain the answer, state that.\n"
+        "4. Each Q&A must be grounded in the snippet. If the snippet is too generic (boilerplate, imports only), return empty array [].\n"
+        "5. Do not hallucinate beyond the provided text.\n\n"
+        "Output Schema (JSON only, no markdown, no extra text):\n"
+        "[\n"
+        "  {{\n"
+        "    \"question\": \"string\",\n"
+        "    \"answer\": \"string\",\n"
+        "    \"category\": \"Architecture|Configuration|Deployment|Operations|Integration|Data Model|Security|Performance|Business Logic|Algorithm|API|State|Error Handling|Lifecycle|Extension Point\",\n"
+        "    \"importance\": \"Critical|High|Medium|Low\",\n"
+        "    \"concepts\": [\"string\", \"...\"],\n"
+        "    \"confidence\": 0.0-1.0\n"
+        "  }}\n"
+        "]\n"
+        "Rules:\n"
+        "- Category must be one of the listed values\n"
+        "- Importance must be Critical|High|Medium|Low\n"
+        "- Concepts: 3-8 tags representing key engineering concepts\n"
+        "- Confidence: 0.0-1.0, how grounded the answer is in the snippet\n"
+        "- Return ONLY raw JSON array. No backticks, no markdown, no extra text.\n"
+        "- If snippet is too generic (boilerplate, imports only), return empty array []\n\n"
         "Source file: {source}\n"
         "Snippet:\n{text}\n\n"
-        "{format_instructions}\n"
-        "Return ONLY raw JSON array. No backticks, no markdown."
-    ).partial(format_instructions=parser.get_format_instructions())
+    )
 
     global_chain = global_prompt | llm | parser
     code_chain = code_prompt | llm | parser
@@ -158,12 +209,20 @@ def run_generation():
             for qa in pairs:
                 question = qa.get("question") or qa.get("q")
                 answer = qa.get("answer") or qa.get("a")
+                category = qa.get("category", "Architecture")
+                importance = qa.get("importance", "Medium")
+                concepts = qa.get("concepts", [])
+                confidence = qa.get("confidence", 0.8)
                 if question and answer:
                     all_qa.append({
                         "id": f"qa_{len(all_qa)}",
                         "source": source_metadata,
                         "question": question,
-                        "answer": answer
+                        "answer": answer,
+                        "category": category,
+                        "importance": importance,
+                        "concepts": concepts,
+                        "confidence": confidence
                     })
 
     # PASS 1: High-Level Core Profiler Pass

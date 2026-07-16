@@ -1,0 +1,94 @@
+---
+concept_id: Dockerfile
+description: ARG TARGETPLATFORM=linux/amd64
+git_branch: main
+git_repo: askode
+okf_version: '0.2'
+resource: github.com/your/repo/blob/main//Users/nickrotich/Desktop/portfolio/projects/python/askode/docs/Dockerfile.test_0626
+tags:
+- strategy
+- trading
+- rl
+- karakana
+- shadow-trading
+- ext:test_0626
+- freqtrade
+- policy
+- docker
+timestamp: '2026-07-16T03:54:30.975347Z'
+title: Dockerfile
+type: Config
+---
+
+ARG TARGETPLATFORM=linux/amd64
+ARG RL_TRADE_TRAINER_DIR=rl-trade-trainer
+
+# Freqtrade remains the core trading runtime. This image only layers the
+# Karakana runtime package and sidecar CLIs onto Freqtrade. Strategy files,
+# sqlite databases, configs, and policies stay in the external user_data mount.
+FROM freqtradeorg/freqtrade:2026.3 AS installer
+ARG RL_TRADE_TRAINER_DIR
+ARG TARGETARCH
+USER root
+RUN DEBIAN_FRONTEND=noninteractive apt-get -yq update --fix-missing && \
+    DEBIAN_FRONTEND=noninteractive apt-get -yq install --no-install-recommends libgomp1 && \
+    rm -rf /var/lib/apt/lists/*
+
+USER ftuser
+RUN python -m pip install --upgrade pip && \
+    rm -rf /home/ftuser/.local/lib/python*/site-packages/numpy* \
+           /home/ftuser/.local/lib/python*/site-packages/pandas* \
+           /home/ftuser/.local/lib/python*/site-packages/torch*
+RUN python -m pip install --user \
+    --no-cache-dir \
+    termcolor \
+    pygments \
+    ft-scikit-optimize==0.9.2
+RUN if [ "$TARGETARCH" != "amd64" ]; then \
+        echo "This runtime image intentionally supports linux/amd64 only because CPU-only Torch wheels are required."; \
+        exit 1; \
+    fi && \
+    python -m pip install --user --no-cache-dir --force-reinstall \
+        "torch==2.11.0+cpu" \
+        --index-url https://download.pytorch.org/whl/cpu
+RUN python -m pip install --user \
+    --no-cache-dir \
+    --force-reinstall \
+    "numpy==2.2.6" \
+    "pandas==2.3.3"
+
+#COPY --chown=ftuser:ftuser ${RL_TRADE_TRAINER_DIR}/karakana /tmp/karakana
+COPY --chown=ftuser:ftuser ${RL_TRADE_TRAINER_DIR}/karakana/pyproject.toml /tmp/karakana/pyproject.toml
+COPY --chown=ftuser:ftuser ${RL_TRADE_TRAINER_DIR}/karakana/README.md /tmp/karakana/README.md
+COPY --chown=ftuser:ftuser ${RL_TRADE_TRAINER_DIR}/karakana/karakana /tmp/karakana/karakana
+COPY --chown=ftuser:ftuser ${RL_TRADE_TRAINER_DIR}/karakana/config /tmp/karakana/config
+RUN python -m pip install --user --no-cache-dir --no-deps --force-reinstall /tmp/karakana && \
+    python -m pip install --user --no-cache-dir --force-reinstall ccxt==4.5.54 && \
+    python -m pip install --user --no-cache-dir gymnasium==1.2.3 && \
+    python -c "import numpy; import pandas; print('numpy', numpy.__version__, 'pandas', pandas.__version__)" && \
+    python -c "from karakana.runtime.policy import KarakanaOfflinePolicy; import karakana.runtime.shadow_trader; import karakana.runtime.strategy_health" && \
+    command -v karakana-shadow-trader && \
+    command -v karakana-shadow-health
+
+FROM freqtradeorg/freqtrade:2026.3
+ARG RL_TRADE_TRAINER_DIR
+USER root
+RUN DEBIAN_FRONTEND=noninteractive apt-get -yq update --fix-missing && \
+    DEBIAN_FRONTEND=noninteractive apt-get -yq install --no-install-recommends libgomp1 && \
+    rm -rf /var/lib/apt/lists/*
+
+ENV PIP_NO_CACHE_DIR=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONPATH=/freqtrade/
+
+USER ftuser
+COPY --from=installer --chown=ftuser:ftuser /home/ftuser/.local /home/ftuser/.local
+
+RUN mkdir -p /freqtrade/karakana /freqtrade/plot_equity /freqtrade/user_data/logs
+COPY --chown=ftuser:ftuser ${RL_TRADE_TRAINER_DIR}/karakana/config/karakana-config.json /freqtrade/karakana/
+RUN touch /freqtrade/user_data/__init__.py /freqtrade/user_data/logs/freqtrade.log
+RUN python -c "from karakana.runtime.policy import KarakanaOfflinePolicy; import karakana.runtime.shadow_trader; import karakana.runtime.strategy_health" && \
+    command -v karakana-shadow-trader && \
+    command -v karakana-shadow-health
+
+USER ftuser

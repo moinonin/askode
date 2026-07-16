@@ -116,6 +116,7 @@ askode/
 
 ## 🔧 Make Targets
 
+### Core Pipeline
 | Target | Description |
 |--------|-------------|
 | `make setup` | Install Python deps |
@@ -124,6 +125,49 @@ askode/
 | `make run-nvidia` | Run with NVIDIA API |
 | `make run-cloud` | Run with OpenAI |
 | `make clean` | Remove generated artifacts |
+
+### OKF Knowledge Bundles (AST + Docs)
+| Target | Description |
+|--------|-------------|
+| `make okf-generate-all` | Generate all 4 bundles (code, scripts, strategies, docs) |
+| `make okf-generate-code` | AST-extract `src/` → `code_bundle` |
+| `make okf-generate-scripts` | AST-extract `scripts/` → `scripts_bundle` |
+| `make okf-generate-strategies` | AST-extract `docs/strategies/` → `strategies_bundle` |
+| `make okf-generate-docs` | Convert `docs/*.md` → `docs_bundle` |
+| `make okf-update-all` | Fast incremental update all bundles |
+| `make okf-update-code` | Update `code_bundle` from `src/` |
+| `make okf-update-scripts` | Update `scripts_bundle` from `scripts/` |
+| `make okf-update-strategies` | Update `strategies_bundle` from `docs/strategies/` |
+| `make okf-update-docs` | Update `docs_bundle` from `docs/` |
+| `make okf-watch-code` | Watch `src/` for continuous updates |
+| `make okf-watch-scripts` | Watch `scripts/` for continuous updates |
+| `make okf-watch-strategies` | Watch `docs/strategies/` for continuous updates |
+| `make okf-watch-docs` | Watch `docs/` for continuous updates |
+| `make okf-chunk` | Semantic chunking (Phase 6) |
+| `make okf-embed` | Generate embeddings (Phase 7) |
+| `make okf-index` | Index to ChromaDB (Phase 8) |
+| `make okf-pipeline` | Run chunk → embed → index |
+| `make okf-link` | Add cross-bundle links (docs ↔ code) |
+| `make okf-viz-all` | Visualize all 4 bundles as HTML |
+| `make okf-viz-code` | Visualize `code_bundle` |
+| `make okf-viz-scripts` | Visualize `scripts_bundle` |
+| `make okf-viz-strategies` | Visualize `strategies_bundle` |
+| `make okf-viz-docs` | Visualize `docs_bundle` |
+| `make okf-dashboard` | Live dashboard for `code_bundle` (port 8700) |
+| `make okf-install-agents` | Install OKF skills for Cursor, Copilot, Windsurf, Cline, OpenCode |
+| `make okf-lookup CONCEPT=<name> BUNDLE=<bundle>` | CLI lookup by concept ID |
+
+### OKF Chat (ChromaDB RAG)
+| Target | Description |
+|--------|-------------|
+| `make okf-chat-local` | Chainlit chat with local embeddings (port 3000) |
+| `make okf-chat-nvidia` | Chainlit chat with NVIDIA embeddings |
+| `make okf-chat-cloud` | Chainlit chat with OpenAI embeddings |
+
+### Evaluation
+| Target | Description |
+|--------|-------------|
+| `make okf-eval` | Run retrieval evaluation (concept accuracy + cross-bundle) |
 
 ---
 

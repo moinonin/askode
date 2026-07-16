@@ -1,0 +1,32 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "okf-code-bundle": {
+      "type": "local",
+      "command": [
+        "/Users/nickrotich/Desktop/portfolio/projects/python/askode/.venv/bin/okf",
+        "mcp",
+        "/Users/nickrotich/Desktop/portfolio/projects/python/askode/docs/okfs/code_bundle"
+      ],
+      "enabled": true
+    },
+    "okf-docs-bundle": {
+      "type": "local",
+      "command": [
+        "/Users/nickrotich/Desktop/portfolio/projects/python/askode/.venv/bin/okf",
+        "mcp",
+        "/Users/nickrotich/Desktop/portfolio/projects/python/askode/docs/okfs/docs_bundle"
+      ],
+      "enabled": true
+    },
+    "okf-generator": {
+      "type": "local",
+      "command": [
+        "/Users/nickrotich/Desktop/portfolio/projects/python/askode/.venv/bin/okf",
+        "mcp",
+        "/Users/nickrotich/Desktop/portfolio/projects/python/askode/docs/okfs/scripts_bundle"
+      ],
+      "enabled": true
+    }
+  }
+}
